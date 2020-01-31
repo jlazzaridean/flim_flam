@@ -53,6 +53,37 @@ st = stFi(1);
 fi = stFi(2);
 residTrace = zeros(size(tp));
 
+%find index of first zero in the decay (after the peak, use this as fi if it is less than
+%fi
+zeroBins = decay == 0;
+zeroInd = -1;
+[~, peakInd] = max(decay);
+for i = peakInd:n
+    if zeroBins(i,1) == 1
+        zeroInd = i;
+        break;
+    end
+end
+if (zeroInd > 0 && zeroInd < fi)
+    fi = zeroInd;
+end
+
+%calculate the offset from the values before the start and after the finish
+%if offset subtraction mode is 2
+if offsetMode == 2
+    bkgd1 = decay(1:st);
+    offset = mean(bkgd1);
+    decay = decay - offset;
+    decay(decay<0) = 0;
+end
+
+%fixedParam should be all 0s or 1s
+for i=1:size(fixedParams,2)
+    if(fixedParams(1,i) ~= 0 && fixedParams(1,i) ~= 1)
+        error('All values in the fixed param array must be either zero or one.');
+    end
+end
+
 %fixedParam should be all 0s or 1s
 for i=1:size(fixedParams,2)
     if(fixedParams(1,i) ~= 0 && fixedParams(1,i) ~= 1)

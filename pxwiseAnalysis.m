@@ -77,10 +77,8 @@
 function [data] = pxwiseAnalysis(data,render,oFolder,spatialBin,binType,adcBin,config,varargin)
 
 %add subfolders to the path
-fsep = filesep;
 addpath('parsingTracing');
 addpath('fittingVariousModels');
-addpath(['parsingTracing' fsep 'colormaps']);
 
 %varargin will be the range for each overlay as [limLow limHigh] in the
 %order they are listed in the render matrix

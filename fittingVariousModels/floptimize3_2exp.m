@@ -3,13 +3,10 @@
 
 % F(tau1, tau2, a1, a2, t) = a1*exp(-t/tau1) + a2*exp(-t/tau2)
 
-%Code was originally adapted (although heavily modified) from open source code
+%Dependencies: convol.m, sortATs.m, assignParams_2exp.m
+%Note: convol.m function is used from open source code
 %orginally documented in:
 %   Enderlein, J; Erdmann, R, Optics Communications, 1997, 134, 371-378.
-%All edits were made by Julia Lazzari-Dean.
-%Last edits 10/11/2019
-
-%Dependencies: convol.m, sortATs.m, assignParams_2exp.m
 
 %Input parameters:
 % decay - time resolved fluorescence signal (one decay at a time), as an N x
@@ -47,16 +44,22 @@
 %parameter in the fit (0 = shift is a free parameter, 1 = shift is fixed to
 %starting value). 
 
-%The offsetMode value (COMMENT MORE HERE) boolean dictates whether the offset is fit (offFixed = 0) or
-%whether it is fixed to 0 during the analysis (offFixed = 1). There is not
-%currently support for setting offset to a particular value here - instead
-%subtract the offset from each decay in the upstream parsing code.
+%The offsetMode value determines how the offset is found.
+    %offsetMode 0: offset is floating (determined during the fit)
+    %offsetMode 1: offset is fixed to 0 during analysis (assumes no dark counts)
+    %offsetMode 2: offset is determined from the time bins before the laser
+        %pulse. This value is subtracted from all data, and then the offset
+        %is fixed to 0 during fitting. If there is an incomplete decay (i.e.
+        %residual signal from the previous laser cycle) in the early bins, 
+        %offsetMode 2 will give you artefactual results.
 
 %The function uses the fmincon built-in Matlab function for optimization
 %and minimizes the reduced chi squared of the fit, specifically calculated
 %as the following (where st and fi are the time bins of the start and
 %finish of the fitting, respectively). Note: This is a LOCAL NOT A GLOBAL
 %optimization, selected to decrease run time.
+
+%Last edits: 1/30/20, Julia Lazzari-Dean
 
 function [tm, aFs, tFs, cF, offset, chiSq, residTrace, SSE, exitFlag] = floptimize3_2exp(decay,irf,cShift,shiftFixed,offsetMode,startParams,fixedParams,stFi,period,viewDecay)
 
@@ -89,11 +92,16 @@ end
 %if offset subtraction mode is 2
 if offsetMode == 2
     bkgd1 = decay(1:st);
-%     nEndBins = n - fi;
-%     bkgd1(end:end+nEndBins,1) = decay(fi:n,1);
-    dc = mean(bkgd1);
-    decay = decay - dc;
+    offset = mean(bkgd1);
+    decay = decay - offset;
     decay(decay<0) = 0;
+end
+
+%fixedParam should be all 0s or 1s
+for i=1:size(fixedParams,2)
+    if(fixedParams(1,i) ~= 0 && fixedParams(1,i) ~= 1)
+        error('All values in the fixed param array must be either zero or one.');
+    end
 end
 
 %fixedParam should be all 0s or 1s
