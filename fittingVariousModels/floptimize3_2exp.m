@@ -11,9 +11,9 @@
 %Input parameters:
 % decay - time resolved fluorescence signal (one decay at a time), as an N x
 %  1 array (N is the ADC resolution)
-% irf - measured instrument response, also as an Nx1 array (I recommend
+% IRF - measured instrument response, also as an Nx1 array (I recommend
 %  trimming only to time bins of interest, e.g. 26-36 out of 256 for the
-%  current MaiTai setup). The fit guess is reconvolved with the irf
+%  current MaiTai setup). The fit guess is reconvolved with the IRF
 %  after application of a color shift (below) before chiSq is evaluated.
 % cShift - starting value of the color shift parameter.
 % shiftFixed - if 0, will optimize cShift. If 1, will fix the shift to
@@ -38,7 +38,7 @@
 % weighted by the number of photon counts in that time bin, as is typical
 % for Poisson processes.
 
-%The fit guess is reconvolved with the irf after application of a color
+%The fit guess is reconvolved with the IRF after application of a color
 %shift. The color shift start point is given by the cShift parameter. The
 %boolean shiftFixed dictates whether the shift will be included as a free
 %parameter in the fit (0 = shift is a free parameter, 1 = shift is fixed to
@@ -59,19 +59,24 @@
 %finish of the fitting, respectively). Note: This is a LOCAL NOT A GLOBAL
 %optimization, selected to decrease run time.
 
-%Last edits: 1/30/20, Julia Lazzari-Dean
+%Last edits: 1/30/2020, Julia Lazzari-Dean
 
-function [tm, aFs, tFs, cF, offset, chiSq, residTrace, SSE, exitFlag] = floptimize3_2exp(decay,irf,cShift,shiftFixed,offsetMode,startParams,fixedParams,stFi,period,viewDecay)
+function [tm, aFs, tFs, cF, offset, chiSq, residTrace, SSE, exitFlag] = floptimize3_2exp(decay,IRF,configS)
 
-%initialize parameters correctly for deckard usage
-p = period; %time range
-n = length(irf);
+%extract relevant parameters from the configuration structure
+p = configS(1,1).nsPeriod; %time range
+n = length(IRF);
 t = (1:n)'; %time scale in time bin units
 dt = p/n;
-tp = (0:dt:(p-dt))'; %time scale
-st = stFi(1);
-fi = stFi(2);
+tp = (0:dt:(p-dt))'; %time scale 
+st = configS(1,1).stFi(1)/configS(1,1).adcBin;
+fi = configS(1,1).stFi(2)/configS(1,1).adcBin;
 residTrace = zeros(size(tp));
+cShift = configS(1,1).cShift;
+startParam = configS(1,1).startParam;
+fixedParam = configS(1,1).fixedParam;
+offsetMode = configS(1,1).offsetMode;
+shiftFixed = configS(1,1).shiftFixed;
 
 %find index of first zero in the decay (after the peak, use this as fi if it is less than
 %fi
@@ -98,25 +103,18 @@ if offsetMode == 2
 end
 
 %fixedParam should be all 0s or 1s
-for i=1:size(fixedParams,2)
-    if(fixedParams(1,i) ~= 0 && fixedParams(1,i) ~= 1)
+for i=1:size(fixedParam,2)
+    if(fixedParam(1,i) ~= 0 && fixedParam(1,i) ~= 1)
         error('All values in the fixed param array must be either zero or one.');
     end
 end
 
-%fixedParam should be all 0s or 1s
-for i=1:size(fixedParams,2)
-    if(fixedParams(1,i) ~= 0 && fixedParams(1,i) ~= 1)
-        error('All values in the fixed param array must be either zero or one.');
-    end
-end
-
-%startParams will be a vector with the desired starting values for each
-%parameter. It is paired with the vector fixedParams, which will specify
+%startParam will be a vector with the desired starting values for each
+%parameter. It is paired with the vector fixedParam, which will specify
 %which of the parameters is fixed. 
-nParam = length(startParams) - nnz(fixedParams);
-paramToUse = ~fixedParams;
-param = startParams .* paramToUse;
+nParam = length(startParam) - nnz(fixedParam);
+paramToUse = ~fixedParam;
+param = startParam .* paramToUse;
 param(param == 0) = [];
 %if the shift will be free, add it to the end of the param vector
 if ~shiftFixed
@@ -124,10 +122,16 @@ if ~shiftFixed
     nParam = nParam + 1;
 end
 
-%setup for fmincon based optimization
+%setup for fmincon - extract relevant values from the config file
+maxFunEval = configS(1,1).maxFunEval;
+stepTol = configS(1,1).stepTol;
+optimTol = configS(1,1).optimTol;
+constraintTol = configS(1,1).constraintTol;
+
+%create a structure with fit options and bounds for the function call
 options = optimoptions('fmincon','Display','off','Algorithm','interior-point',...
-    'MaxFunctionEvaluations',1e5,'StepTolerance',1e-4,'OptimalityTolerance',1e-4,...
-    'ConstraintTolerance',1e-6);
+    'MaxFunctionEvaluations',maxFunEval,'StepTolerance',stepTol,...
+    'OptimalityTolerance',optimTol,'ConstraintTolerance',constraintTol);
 A = [];
 b = [];
 Aeq = [];
@@ -156,7 +160,7 @@ nonlcon = [];
         %this function has access to all of the values within floptimize.
         
         %assign the current guesses and fixed parameters
-        [a1G, a2G, t1G, t2G, uP] = assignParams_2exp(param,startParams,fixedParams);
+        [a1G, a2G, t1G, t2G, uP] = assignParams_2exp(param,startParam,fixedParam);
         
         %fix the shift as is appropriate
         if(~shiftFixed)
@@ -174,7 +178,7 @@ nonlcon = [];
         x = a1G*exp(-tp/t1G) + a2G*exp(-tp/t2G);
         %shift the IRF by the current guess for the shift amount and
         %reconvolve with the current exponential guess
-        irs = (1-cG+floor(cG))*irf(rem(rem(t-floor(cG)-1, n)+n,n)+1) + (cG-floor(cG))*irf(rem(rem(t-ceil(cG)-1, n)+n,n)+1);
+        irs = (1-cG+floor(cG))*IRF(rem(rem(t-floor(cG)-1, n)+n,n)+1) + (cG-floor(cG))*IRF(rem(rem(t-ceil(cG)-1, n)+n,n)+1);
         z = convol(irs, x);
         
         %fix the offset coefficient or leave it floating
@@ -193,7 +197,7 @@ nonlcon = [];
     end
 
 %extract the final values from the output
-[a1F, a2F, t1F, t2F, uPF] = assignParams_2exp(pOpt,startParams,fixedParams);
+[a1F, a2F, t1F, t2F, uPF] = assignParams_2exp(pOpt,startParam,fixedParam);
 
 %assign the shift
 if(~shiftFixed)
@@ -213,7 +217,7 @@ x = a1F*exp(-tp/t1F) + a2F*exp(-tp/t2F);
 
 %shift the IRF by the current guess for the shift amount and
 %reconvolve with the current exponential guess
-irs = (1-cF+floor(cF))*irf(rem(rem(t-floor(cF)-1, n)+n,n)+1) + (cF-floor(cF))*irf(rem(rem(t-ceil(cF)-1, n)+n,n)+1);
+irs = (1-cF+floor(cF))*IRF(rem(rem(t-floor(cF)-1, n)+n,n)+1) + (cF-floor(cF))*IRF(rem(rem(t-ceil(cF)-1, n)+n,n)+1);
 gC = convol(irs, x);
 %fix the offset coefficient or leave it floating
 if(offsetMode == 1 || offsetMode == 2)
@@ -224,8 +228,8 @@ end
 coeff = lsqnonneg(gC,decay);
 gCW = gC*coeff;
 
-%from lsqnonneg - coeff(1) is the offset and coeff(2)is the scale factor
-%between the two - I THINK.
+%from lsqnonneg - i believe coeff(1) is the offset and coeff(2)is the scale factor
+%between the two
 offset = coeff(1);
 
 %calculate tm at  the final state
@@ -240,14 +244,13 @@ tF = [t1F t2F];
 
 SSE=0;
 for i=st:fi
-	%SSE = SSE + (decay(i,1)-gCW(i,1)).^2/abs(gCW(i,1));
     SSE = SSE + (decay(i,1)-gCW(i,1)).^2;
 end
 
 %calculate the weighted residuals
 residTrace(st:fi) = (decay(st:fi)-gCW(st:fi))./sqrt(abs(gCW(st:fi)));      
 
-if viewDecay
+if configS(1,1).viewDecay
     %this is just here for troubleshooting
     %make a plot of the guesses versus the data
     hold off
@@ -278,6 +281,10 @@ if viewDecay
     s = sprintf('%3.3f', chiSq);
     text(max(t)/2,v(4)-0.1*(v(4)-v(3)),['\chi^2 = ' s]);
     set(gcf,'units','normalized','position',[0.01 0.05 0.98 0.83])
+    
+    %program will wait for the user key press to acknowledge having viewed
+    %the decay
+    pause;
 end
 
 end

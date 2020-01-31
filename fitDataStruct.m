@@ -29,8 +29,6 @@
     %oName - the base output name for saving results. These files will be
     %saved to the path specified in the data structure (where the .sdt and
     %.bin files are located)
-    %adcBin - the bin factor for the ADC dimension. bin 1 = no binning
-    %(standard binning format)
     %configS - a structure containing the configuration and system
     %parameters for the data. It may be used as an output from either
     %readConfig or importData.
@@ -39,7 +37,7 @@
 %assignParams_3exp, assignParams_4exp, convol, floptimize3_1exp,
 %floptimize3_2exp, floptimize3_3exp, floptimize3_4exp
 
-function [data] = fitDataStruct(data,oName,adcBin,configS)
+function [data] = fitDataStruct(data,oName,configS)
 
 %add subfolders to the path
 addpath('fittingVariousModels');
@@ -48,63 +46,54 @@ addpath('fittingVariousModels');
 model = configS(1,1).model;
 modelChar = char(model);
 nExp = str2double(modelChar(1,1));
-period_ns = configS(1,1).period_ns;
-cShift = configS(1,1).cShift;
-shiftFixed = configS(1,1).shiftFixed;
-startParam = configS(1,1).startParam;
-fixedParam = configS(1,1).fixedParam;
-stFi = configS(1,1).stFi./adcBin;
-offFixed = configS(1,1).offFixed;
-viewDecay = configS(1,1).viewDecay;
 
 %iterate through the data and fit
 for i = 1:size(data,1)
+    %save relevant metadata about the fit process to the output structure
     data(i,1).model = model;
+    data(i,1).fixedParam = configS(1,1).fixedParam;
+    data(i,1).startParam = configS(1,1).startParam;
     if(isempty(data(i,1).decays))
         error('No decays found for index %d',i);
     end
     data(i,1).totalPhotons = sum(data(i,1).decays,1)';
     
     %bin the IRF and the decay if the user wanted
-    data(i,1).adcBin = adcBin;
-    [binnedDecays,binnedIRF] = binADCGlobal(data(i,1).decays, data(i,1).IRF,adcBin);
-    theseResults = batchFloptimizeExp(binnedDecays,binnedIRF,...
-        model,cShift,shiftFixed,offFixed,startParam,fixedParam,stFi,period_ns,viewDecay);
-    resultsToWrite = rmfield(theseResults,{'decays','IRF','startParam','fixedParam'});
-    theseFields = fieldnames(resultsToWrite);
+    data(i,1).adcBin = configS(1,1).adcBin;
+    [binnedDecays,binnedIRF] = binADCGlobal(data(i,1).decays, data(i,1).IRF,data(i,1).adcBin);
+    data(i,1).bDecays = binnedDecays;
+    data(i,1).bIRF = binnedIRF;
+    %call the fit functions and add the results back to the 
+    theseResults = batchFloptimizeExp(binnedDecays,binnedIRF,configS);
+    theseFields = fieldnames(theseResults);
     %write the as and the taus in their own loop
     for j = 1:size(theseFields,1)
         thisField = theseFields{j,1};
         if(strcmp(thisField,'tau'))
-            for k = 1:size(resultsToWrite,1)
-                data(i,1).tau(k,1:nExp) = resultsToWrite(k,1).tau(1,1:nExp);
+            for k = 1:size(theseResults,1)
+                data(i,1).tau(k,1:nExp) = theseResults(k,1).tau(1,1:nExp);
             end
         elseif(strcmp(thisField,'a'))
-            for k = 1:size(resultsToWrite,1)
-                data(i,1).a(k,1:nExp) = resultsToWrite(k,1).a(1,1:nExp);
+            for k = 1:size(theseResults,1)
+                data(i,1).a(k,1:nExp) = theseResults(k,1).a(1,1:nExp);
             end
         else
-            data(i,1).(thisField) = [resultsToWrite(:,1).(thisField)]';
+            data(i,1).(thisField) = [theseResults(:,1).(thisField)]';
         end
-    end
-    %save the start and fixed params
-    for k = 1:size(resultsToWrite,1)
-        data(i,1).startParam(k,:) = startParam;
-        data(i,1).fixedParam(k,:) = fixedParam;
     end
 end
 
 %expand the structure for writing to .csv
 fieldsAll = fieldnames(data);
 if(any(strcmp(fieldsAll,'masks'))) %data came from images
-    dataToWrite = rmfield(data,{'IRF','decays','residTrace','irfName','masks'});
+    dataToWrite = rmfield(data,{'bIRF','bDecays','residTrace','irfName','masks'});
 else
-    dataToWrite = rmfield(data,{'IRF','decays','residTrace','irfName'});
+    dataToWrite = rmfield(data,{'bIRF','bDecays','residTrace','irfName'});
 end
 
-%unpack the structure and convert it to a table
+%remove taus, as, start and fixed param from multiexp models - will write them later
 count = 1;
-if(~strcmp(configS(1,1).model,'1exp')) %remove taus, as, start and fixed param from multiexp models (anything with more than one entry per fit)
+if(~strcmp(configS(1,1).model,'1exp')) 
     fieldToWrite = fieldnames(rmfield(dataToWrite,{'tau','a','startParam','fixedParam'}));
 else
     fieldToWrite = fieldnames(dataToWrite);
@@ -126,8 +115,8 @@ for i=1:size(dataToWrite,1)
         if(~strcmp(configS(1,1).model,'1exp'))
             expandedData(count,1).tau(1,1:nExp) = dataToWrite(i,1).tau(j,1:nExp);
             expandedData(count,1).a(1,1:nExp) = dataToWrite(i,1).a(j,1:nExp);
-            expandedData(count,1).startParam(1,1:(2*nExp)) = dataToWrite(i,1).startParam(j,1:(2*nExp));
-            expandedData(count,1).fixedParam(1,1:(2*nExp)) = dataToWrite(i,1).fixedParam(j,1:(2*nExp));
+            expandedData(count,1).startParam = configS(1,1).startParam;
+            expandedData(count,1).fixedParam = configS(1,1).fixedParam;
         end
         count = count + 1;
     end
@@ -159,9 +148,9 @@ ylabel('Decay Count');
 %now make the weighted residuals plots
 plotCount = 1;
 %calculate the time resolution
-ADCres = configS(1,1).ADCres./adcBin;
-period_ns = configS(1,1).period_ns;
-time = 0:period_ns/ADCres:(period_ns - period_ns/ADCres);
+adcRes = configS(1,1).adcRes/configS(1,1).adcBin;
+nsPeriod = configS(1,1).nsPeriod;
+time = 0:nsPeriod/adcRes:(nsPeriod - nsPeriod/adcRes);
 %iterate through the required number of figures and do the plotting
 for i=1:nFigs
     figList(i+1,1) = figure;
@@ -176,7 +165,7 @@ for i=1:nFigs
         %plot the first decay in this subset
         plot(time,subset(1,1).residTrace,'LineWidth',1);
         xlabel('Time(ns)');
-        xlim([0 period_ns]);
+        xlim([0 nsPeriod]);
         ylabel('Weighted Residual');
         title(['cID ' num2str(cIDUnique(plotCount,1)) ', 1st Entry']);
         plotCount = plotCount + 1;

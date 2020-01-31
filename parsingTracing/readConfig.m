@@ -83,9 +83,9 @@ end
 
 config = rmfield(configLong,fields(paramFields));
 
-config(1,1).stFi = [config(1,1).fit_start config(1,1).fit_end];
-config(1,1).IRFlim = [config(1,1).irf_start config(1,1).irf_end];
-config = rmfield(config,{'fit_start','fit_end','irf_start','irf_end'});
+config(1,1).stFi = [config(1,1).fitStart config(1,1).fitEnd];
+config(1,1).irfLim = [config(1,1).irfStart config(1,1).irfEnd];
+config = rmfield(config,{'fitStart','fitEnd','irfStart','irfEnd'});
 
 config(1,1).startParam = start;
 config(1,1).fixedParam = fixed;

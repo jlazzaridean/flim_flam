@@ -121,7 +121,7 @@ if ~strcmp(importMode,'single')
 end
 
 %ask the user for the IRF files
-irfStruct = readIRF(config(1,1).IRFmode,config(1,1).IRFlim,oName,pName);
+irfStruct = readIRF(config(1,1).irfMode,config(1,1).irfLim,oName,pName);
 nIRFs = size(irfStruct,1);
 
 %test that all of the IRFs are specified in the metadata
@@ -352,6 +352,7 @@ for i=1:nFiles
     else
         error('Unrecognized import mode');
     end
+    data(i,1).importMode = importMode;
 end
 
 %test that all metadata were used & warn if it wasn't
@@ -373,15 +374,15 @@ switch importMode
         writetable(struct2table(dataToSave,'AsArray',true),[fullOName '.csv']);
     case 'global_btm'
         dataToSave = rmfield(data,'tcspc');
-        save(fullOName,'dataToSave','md','config','importMode');
+        save(fullOName,'dataToSave','md','config');
         writetable(struct2table(dataToSave,'AsArray',true),[fullOName '.csv']);
     case 'global_fiji'
         dataToSave = rmfield(data,'tcspc');
-        save(fullOName,'dataToSave','md','config','roiS','importMode');        
+        save(fullOName,'dataToSave','md','config','roiS');        
         writetable(struct2table(dataToSave,'AsArray',true),[fullOName '.csv']);
     case 'pxwise'
         dataToSave = data;
-        save(fullOName,'data','md','config','importMode','-v7.3');
+        save(fullOName,'data','md','config','-v7.3');
     otherwise
         error('Unrecognized import mode');
 end

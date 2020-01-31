@@ -1,0 +1,2 @@
+period_ns,irf_start,irf_end,fit_start,fit_end,threshold,startParam,cShift,shiftFixed,model,IRFmode,offFixed,ADCres,viewDecay,maxFunEval,stepTol,optimTol,constraintTol,colorMode
+12.5,24,34,20,240,5000,2,0,1,1exp,paired,1,256,0,1.00E+05,1.00E-04,1.00E-04,1.00E-06,jet

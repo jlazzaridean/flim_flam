@@ -7,7 +7,7 @@
 %the final reduced chi squared, and an exit flag as to whether the
 %algorithm converged (positive values are good, negative values are bad).
 
-%The fit guess is reconvolved with the irf after application of a color
+%The fit guess is reconvolved with the IRF after application of a color
 %shift. The color shift start point is given by the cShift parameter. The
 %boolean shiftFixed dictates whether the shift will be included as a free
 %parameter in the fit (0 = shift is a free parameter, 1 = shift is fixed to
@@ -28,28 +28,27 @@
 % chiSq = sum((guess(st:fi)-decay(st:fi)).^2./abs(z(st:fi)))/(fi-st-nParam);  
 %(Each value is weighted by the number of photon counts)
 
-%Default parameters that are perhaps relevant to the astute user:
-%Start point: all coefficients equal, decay constants: 0.5, 1.5, 2.5 ns
-%256 time bins of ADC resolution, fitting only to time bins 23-240, laser
-%period 12.5 ns
 %This script assumes the IRF has already been trimmed to the desired time
 %bins (such as 26-36 of the ADC range).
 
-%last edits 1/24/2019 Julia Lazzari-Dean
+%last edits 1/30/2020 Julia Lazzari-Dean
 
 
-function [tF, cF, offset, chiSq, residTrace, SSE, exitFlag] = floptimize3_1exp(decay,irf,cShift,shiftFixed,offsetMode,startParam,stFi,period,viewDecay)
+function [tF, cF, offset, chiSq, residTrace, SSE, exitFlag] = floptimize3_1exp(decay,IRF,configS)
 
-%initialize parameters correctly for deckard usage
-p = period; %time range
-n = length(irf);
+%extract relevant parameters from the configuration structure
+p = configS(1,1).nsPeriod; %time range
+n = length(IRF);
 t = (1:n)'; %time scale in time bin units
 dt = p/n;
 tp = (0:dt:(p-dt))'; %time scale 
-st = floor(stFi(1));
-fi = floor(stFi(2));
-tStart = startParam; %the start point by default for lifetime analysis
+st = configS(1,1).stFi(1)/configS(1,1).adcBin;
+fi = configS(1,1).stFi(2)/configS(1,1).adcBin;
 residTrace = zeros(size(tp));
+cShift = configS(1,1).cShift;
+tStart = configS(1,1).startParam;
+offsetMode = configS(1,1).offsetMode;
+shiftFixed = configS(1,1).shiftFixed;
 
 %find index of first zero in the decay (after the peak, use this as fi if it is less than
 %fi
@@ -89,10 +88,16 @@ else
     error('shiftFixed boolean should be either 0 or 1');
 end
 
-%setup for fmincon
+%setup for fmincon - extract relevant values from the config file
+maxFunEval = configS(1,1).maxFunEval;
+stepTol = configS(1,1).stepTol;
+optimTol = configS(1,1).optimTol;
+constraintTol = configS(1,1).constraintTol;
+
+%create a structure with fit options and bounds for the function call
 options = optimoptions('fmincon','Display','off','Algorithm','interior-point',...
-    'MaxFunctionEvaluations',1e5,'StepTolerance',1e-4,'OptimalityTolerance',1e-4,...
-    'ConstraintTolerance',1e-6);
+    'MaxFunctionEvaluations',maxFunEval,'StepTolerance',stepTol,...
+    'OptimalityTolerance',optimTol,'ConstraintTolerance',constraintTol);
 A = [];
 b = [];
 Aeq = [];
@@ -126,7 +131,7 @@ nonlcon = [];
             x = exp(-tp/tGuess);
             %shift the IRF by the designated amount and reconvolve with the
             %result
-            irs = (1-c+floor(c))*irf(rem(rem(t-floor(c)-1, n)+n,n)+1) + (c-floor(c))*irf(rem(rem(t-ceil(c)-1, n)+n,n)+1);
+            irs = (1-c+floor(c))*IRF(rem(rem(t-floor(c)-1, n)+n,n)+1) + (c-floor(c))*IRF(rem(rem(t-ceil(c)-1, n)+n,n)+1);
             z = convol(irs, x);
         elseif (shiftFixed == 0)
             %evalulate the function again with the current guess
@@ -135,7 +140,7 @@ nonlcon = [];
             x = exp(-tp/tGuess);
             %shift the IRF by the current guess for the shift amount and 
             %reconvolve with the current exponential guess
-            irs = (1-cG+floor(cG))*irf(rem(rem(t-floor(cG)-1, n)+n,n)+1) + (cG-floor(cG))*irf(rem(rem(t-ceil(cG)-1, n)+n,n)+1);
+            irs = (1-cG+floor(cG))*IRF(rem(rem(t-floor(cG)-1, n)+n,n)+1) + (cG-floor(cG))*IRF(rem(rem(t-ceil(cG)-1, n)+n,n)+1);
             z = convol(irs, x);            
         else
             error('Boolean for shift is not set correctly.');
@@ -173,7 +178,7 @@ end
 x = exp(-tp/tF);
 %shift the IRF by the current guess for the shift amount and
 %reconvolve with the current exponential guess
-irs = (1-cF+floor(cF))*irf(rem(rem(t-floor(cF)-1, n)+n,n)+1) + (cF-floor(cF))*irf(rem(rem(t-ceil(cF)-1, n)+n,n)+1);
+irs = (1-cF+floor(cF))*IRF(rem(rem(t-floor(cF)-1, n)+n,n)+1) + (cF-floor(cF))*IRF(rem(rem(t-ceil(cF)-1, n)+n,n)+1);
 gC = convol(irs, x);
 %fix the offset coefficient or leave it floating
 if(offsetMode == 1 || offsetMode == 2)
@@ -200,7 +205,7 @@ end
 %calculate the weighted residuals
 residTrace(st:fi) = (decay(st:fi)-gCW(st:fi))./sqrt(abs(gCW(st:fi)));
 
-if viewDecay
+if configS(1,1).viewDecay
     %this is just here for troubleshooting
     %make a plot of the guesses versus the data
     hold off
@@ -231,6 +236,9 @@ if viewDecay
     s = sprintf('%3.3f', chiSq);
     text(max(t)/2,v(4)-0.1*(v(4)-v(3)),['\chi^2 = ' s]);
     set(gcf,'units','normalized','position',[0.01 0.05 0.98 0.83])
+    
+    %the program will wait for the user to press any key before continuing
+    pause;
 end
 
 end
