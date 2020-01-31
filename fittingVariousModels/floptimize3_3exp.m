@@ -212,7 +212,11 @@ gCW = gC*coeff;
 
 %from lsqnonneg - i believe coeff(1) is the offset and coeff(2)is the scale factor
 %between the two
-offset = coeff(1);
+if offsetMode == 0
+    offset = coeff(1);
+elseif offsetMode == 1
+    offset = 0;
+end
 
 %calculate the weighted residuals
 residTrace(st:fi) = (decay(st:fi)-gCW(st:fi))./sqrt(abs(gCW(st:fi)));    

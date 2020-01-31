@@ -53,6 +53,8 @@ for i = 1:size(data,1)
     data(i,1).model = model;
     data(i,1).fixedParam = configS(1,1).fixedParam;
     data(i,1).startParam = configS(1,1).startParam;
+    data(i,1).offsetMode = configS(1,1).offsetMode;
+    data(i,1).shiftFixed = configS(1,1).shiftFixed;
     if(isempty(data(i,1).decays))
         error('No decays found for index %d',i);
     end

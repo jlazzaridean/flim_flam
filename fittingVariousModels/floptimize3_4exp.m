@@ -209,7 +209,13 @@ gCW = gC*coeff;
 
 %from lsqnonneg - i believe coeff(1) is the offset and coeff(2)is the scale factor
 %between the two
-offset = coeff(1);
+%from lsqnonneg - i believe coeff(1) is the offset and coeff(2)is the scale factor
+%between the two
+if offsetMode == 0
+    offset = coeff(1);
+elseif offsetMode == 1
+    offset = 0;
+end
 
 %calculate tm at  the final state
 tm = a1F*t1F + a2F*t2F + a3F*t3F + a4F*t4F;
