@@ -64,22 +64,24 @@
 
 function [dataToSave,md,config] = importData(importMode,oName)
 
-%write the paths to the directories where you most commonly would like to
-%start looking for files (configuration and data)
-configPath = pwd;
-dataPath = 'C:\Users\JLD\PhD\ImagingData\Chang880Data\';
 
-%%%%%%%%%%%%%%%%%%Nothing below here needs to change%%%%%%%%%%%%%%%%%%%%%%%%
+
+%one of the only hardcoded things - the convenient path on my computer
+%convenientPath = 'C:\Users\JLD\PhD\Box Sync\2019 Aniline\00 characterization\FLIM-electrophysiology\RawDatasets\';
+convenientPath = 'C:\Users\JLD\PhD\ImagingData\Chang880Data\';
+
+%%%%%%%%%%%%%%%%%%Nothing below here needs to
+%%%%%%%%%%%%%%%%%%change%%%%%%%%%%%%%%%%%%%%%%%%
 
 %add subfolders to the path
 addpath('parsingTracing');
 fsep = filesep;
 
 %get the configuration file
-[config,configName] = readConfig(configPath);
+[config,configName] = readConfig(convenientPath);
 
 %ask the user for the input files
-data = readTCSPC(dataPath);
+data = readTCSPC(convenientPath);
 pName = data(1,1).pName;
 nFiles = size(data,1);
 
@@ -138,12 +140,12 @@ end
 
 %find the expected number of ADC channels and verify that all of the IRFs
 %are the expected length (decays are verified below)
-adcRes = config(1,1).adcRes;
+ADCres = config(1,1).ADCres;
 for i=size(irfStruct,1)
-    if(size(irfStruct(i,1).IRF,1) ~= adcRes)
+    if(size(irfStruct(i,1).IRF,1) ~= ADCres)
         disp('Some of the selected IRFs contain a number of ADC channels inconsistent with the config specifications.');
         disp('Padding end with zeros.');
-        irfStruct(i,1).IRF(end:adcRes) = 0;
+        irfStruct(i,1).IRF(end:ADCres) = 0;
     end
 end
 
@@ -180,9 +182,9 @@ if(strcmp(importMode,'global_fiji'))
         fijiMode = input(prompt);
     end
     if(fijiMode == 1)
-        roiS = readImageJROIs('parse',dataPath);
+        roiS = readImageJROIs('parse',convenientPath);
     elseif (fijiMode == 2)
-        roiS = readImageJROIs('csv',dataPath);
+        roiS = readImageJROIs('csv',convenientPath);
     end
 end
 
@@ -190,7 +192,7 @@ end
 %preferences
 for i=1:nFiles
     %check that all exports contain the same number of ADC channels
-    if(size(data(i,1).tcspc,3) ~= adcRes)
+    if(size(data(i,1).tcspc,3) ~= ADCres)
         error('Some of the included files contain numbers of ADC channels different from the config specification.');
     end
     

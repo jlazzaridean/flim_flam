@@ -40,7 +40,7 @@
 %overlay images. If it's set to -1, it will use the max of the photons
 %image.
 
-function [] = renderImages(data,render,outPath,photonsMax,configS,varargin)
+function [] = renderImages(data,render,outPath,photonsMax,varargin)
 
 %varargin will be the range for each overlay as [limLow limHigh] in the
 %order they are listed in the render matrix
@@ -56,24 +56,11 @@ model = configS(1,1).model;
 for i=1:size(data,1)
     overlayCount = 1;
     for j=1:size(render,1)
-        %extract the value to render & handle a few exception cases for
-        %1exp (allow tau to be called a couple of different things)
+        %extract the value to render and send 
         thisVal = char(render(j,1));
-        if strcmp(model,'1exp')
-            if strcmp(thisVal,'tau1') || strcmp(thisVal,'tm')
-                thisVal = 'tau';
-            end
-        end
-        
-        %render the correct image based on the value entered for render
         oName = strcat(data(i,1).fName(1:end-4),'_',thisVal);
         if(contains(thisVal,'overlay'))
             ccvName = thisVal(9:end);
-            if strcmp(model,'1exp') %handle the similar-sounding exception cases for 1exp fit.
-                if strcmp(ccvName,'tau1') || strcmp(ccvName,'tm')
-                    ccvName = 'tau';
-                end
-            end
             if(strcmp(data(i,1).binType,'std'))
                 if(strcmp(ccvName,'tau1') || strcmp(ccvName,'tau2') || strcmp(ccvName,'tau3') || strcmp(ccvName,'tau4'))
                     tNum = str2double(ccvName(end));
@@ -126,8 +113,7 @@ for i=1:size(data,1)
             aNum = str2double(thisVal(end));
             writeTIFF(data(i,1).a(:,:,aNum),'analysis',outPath,oName);
         else
-            %if the field hasn't been handled yet, it msut be an exact
-            %match or else the code will throw and error.
+            %if the field hasn't been handled yet, it msu
             if isfield(data,thisVal)
                 writeTIFF(data(i,1).(thisVal),'analysis',outPath,oName);
             else

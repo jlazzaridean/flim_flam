@@ -40,18 +40,7 @@
         %"chiSq."
     %oFolder - the directory created within the path name in the data
     %structure where images will be saved
-    %spatialBin - the extent of binning. The meaning of this depends on the
-    %binType (following parameter)
-    %binType - either 'bh' or 'std', specifies how the binning is completed
-        %'bh' - binning similar to that in SPCImage. bin 1 = data from all
-        %pixels one away are added to a given pixel (photon upsampling;
-        %lifetime is effectively a moving average)
-        %'std' - a more conventional binning scheme. bin 2 would indicate
-        %that a 2x2 chunk of pixels is added together to make 1 binned
-        %pixel
-    %adcBin - the binning in the ADC dimension of the data. The binning
-    %format on this is always 'std'
-    %config - an imported structure for a config file. This can either be
+    %configS - an imported structure for a config file. This can either be
     %generated directly by the helper function readConfig() or used from
     %the output of the importData function.
     %varargin - additional parameters are required whenever an overlay is
@@ -74,7 +63,7 @@
 %assignParams_4exp, floptimize3_1exp, floptimize3_2exp, floptimze3_3exp,
 %floptimize4_3exp, sortATs
 
-function [data] = pxwiseAnalysis(data,render,oFolder,spatialBin,binType,adcBin,config,varargin)
+function [data] = pxwiseAnalysis(data,render,oFolder,configS,varargin)
 
 %add subfolders to the path
 addpath('parsingTracing');
@@ -85,22 +74,17 @@ addpath('fittingVariousModels');
 if(~isempty(render))
     nOverlays = nnz(contains(render,'overlay'));
     if(nOverlays ~= size(varargin,2))
-        error('Please enter a range as [low high] for each overlay requested in varargin');
+        error('Please enter exactly one range as [low high] for each overlay requested in varargin');
     end
 end
 
 %parse the data in the config file to get the necessary parameters
-model = config(1,1).model;
-period_ns = config(1,1).period_ns;
-cShift = config(1,1).cShift;
-shiftFixed = config(1,1).shiftFixed;
-startParam = config(1,1).startParam;
-fixedParam = config(1,1).fixedParam;
-thresh = config(1,1).threshold;
-stFi = config(1,1).stFi./adcBin;
-offFixed = config(1,1).offFixed;
-ADCres = config(1,1).ADCres/adcBin;
-viewDecay = config(1,1).viewDecay;
+binType = configS(1,1).binType;
+spatialBin = configS(1,1).spatialBin;
+adcBin = configS(1,1).adcBin;
+model = configS(1,1).model;
+thresh = configS(1,1).threshold;
+adcRes = configS(1,1).adcRes/adcBin;
 
 %identify the number of exponential components to use in generating a
 %structure of the correct size
@@ -148,20 +132,16 @@ for i=1:size(data,1)
                 switch model
                     case '1exp'
                         [tF, cF, offset, chiSq, residTrace, SSE, ...
-                            exitFlag] = floptimize3_1exp(fitMe,fitIRF,...
-                            cShift,shiftFixed,offFixed,startParam,stFi,period_ns,viewDecay);
+                            exitFlag] = floptimize3_1exp(fitMe,fitIRF,configS);
                     case '2exp'
                         [tm, aFs, tFs, cF, offset, chiSq, residTrace, SSE, ...
-                            exitFlag] = floptimize3_2exp(fitMe,fitIRF,...
-                            cShift,shiftFixed,offFixed,startParam,fixedParam,stFi,period_ns,viewDecay);
+                            exitFlag] = floptimize3_2exp(fitMe,fitIRF,configS);
                     case '3exp'
                         [tm, aFs, tFs, cF, offset, chiSq, residTrace, SSE, ...
-                            exitFlag] = floptimize3_3exp(fitMe,fitIRF,...
-                            cShift,shiftFixed,offFixed,startParam,fixedParam,stFi,period_ns,viewDecay);
+                            exitFlag] = floptimize3_3exp(fitMe,fitIRF,configS);
                     case '4exp'
                         [tm, aFs, tFs, cF, offset, chiSq, residTrace, SSE, ...
-                            exitFlag] = floptimize3_4exp(fitMe,fitIRF,...
-                            cShift,shiftFixed,offFixed,startParam,fixedParam,stFi,period_ns,viewDecay);
+                            exitFlag] = floptimize3_4exp(fitMe,fitIRF,configS);
                     otherwise
                         error('Unrecognized model string.');
                 end
@@ -193,7 +173,7 @@ for i=1:size(data,1)
                 data(i,1).chiSq(j,k) = NaN;
                 data(i,1).cShift(j,k) = NaN;
                 data(i,1).offset(j,k) = NaN;
-                data(i,1).resid(j,k,1:ADCres) = NaN;
+                data(i,1).resid(j,k,1:adcRes) = NaN;
             end
         end
     end
@@ -201,9 +181,9 @@ for i=1:size(data,1)
     %render the images - one at a time in this case so that the user can
     %see as things unfold
     if nOverlays > 0
-        renderImages(data(i,1),render,outPath,-1,varargin{1,:});
+        renderImages(data(i,1),render,outPath,-1,configS,varargin{1,:});
     else
-         renderImages(data(i,1),render,outPath,-1);
+        renderImages(data(i,1),render,outPath,-1,configS);
     end
     
     close all
@@ -253,8 +233,8 @@ end
 %first image of each coverslip
 plotCount = 1;
 %calculate the time resolution
-period_ns = config(1,1).period_ns;
-time = 0:period_ns/ADCres:(period_ns - period_ns/ADCres);
+nsPeriod = configS(1,1).nsPeriod;
+time = 0:nsPeriod/adcRes:(nsPeriod - nsPeriod/adcRes);
 time = time';
 %iterate through the required number of figures and do the plotting
 for i=1:nFigs
