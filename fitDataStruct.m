@@ -214,9 +214,10 @@ for i=1:size(figList,1)
     end
 end
 
-%write the reshaped data to .csv (for easy pandas export - one line per fit
+%write the reshaped data and the config file to .csv (for easy pandas export - one line per fit
 %result)
 writetable(struct2table(expandedData),[fullOName '_fit.csv']);
+writetable(struct2table(configS),[fullOName '_config.csv']);
 
 %also save the unexpanded structure to .mat
 save([fullOName '_fit'],'data','configS','-v7.3');

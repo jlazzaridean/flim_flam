@@ -191,7 +191,9 @@ end
 
 %save the result as a .mat file
 oName = strcat(outPath,fsep,data(1,1).date,'_analyzedData');
-save(oName,'data','-v7.3');
+save(oName,'data','configS','-v7.3');
+%save the config file to csv
+writetable(struct2table(configS),[oName '_config.csv']);
 
 %close all open figures
 close all
