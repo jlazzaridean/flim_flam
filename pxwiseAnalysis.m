@@ -95,10 +95,10 @@ fsep = filesep;
 %create the directory oFolder in the path mentioned by the data
 folderInfo = dir(data(1,1).pName);
 if(folderInfo(1,1).isdir)
-    if(data(1,1).pName(end) ~= fsep)
-        data(1,1).pName(end+1) = fsep;
+    outPath = data(1,1).pName;
+    if(outPath(end) ~= fsep)
+        outPath(end+1) = fsep;
     end
-    outPath = strcat(data(1,1).pName,oFolder);
 else
     disp('Invalid directory. Saving to current matlab path.')
     outPath = oFolder;
@@ -195,7 +195,7 @@ for i=1:size(data,1)
 end
 
 %save the result as a .mat file
-oName = strcat(outPath,fsep,data(1,1).date,'_analyzedData');
+oName = strcat(outPath,data(1,1).date,'_analyzedData');
 save(oName,'data','configS','-v7.3');
 %save the config file to csv
 oName_2 = strcat(oName,'_config.csv');
@@ -281,8 +281,7 @@ for i=1:size(axList,1)
 end
 
 names = ["_chiSqHist";"_avgResid"];
-fs = filesep;
-fullOName = strcat(outPath,fs,data(i,1).date,'_pxWise');
+fullOName = strcat(outPath,data(1,1).date,'_pxWise');
 for i=1:size(figList,1)
     set(figList(i,1),'color','w');
     if (i <= size(figList,1)/2)
