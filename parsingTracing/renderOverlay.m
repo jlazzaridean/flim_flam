@@ -18,6 +18,8 @@
 function [figHandle,f2,fImgOnly] = renderOverlay(photons,ccv,photonsMax,ccvRange,ccvColor,figTitle)
 
 bright = 1; %if <1, it enhances photon brightness a bit to make the image clearer
+cmap = colormap(ccvColor);
+cmapFlip = flipud(cmap);
 
 %size of input images
 pSize = size(photons);
@@ -58,7 +60,7 @@ i2 = image(ccv,'Parent',axList(2),'AlphaData',alphaImg,'CDataMapping','scaled');
 %scale the images
 colormap(axList(1),gray);
 caxis(axList(1),[1 maxVal]);
-colormap(axList(2),flipud(ccvColor));
+colormap(axList(2),cmapFlip);
 colorbar(axList(2),'TickLength',0);
 caxis(axList(2),ccvRange);
 pbaspect(axList(1),[1 size(ccv,1)/size(ccv,2) 1]);
@@ -82,7 +84,7 @@ i4 = image(ccv,'Parent',axList(4),'AlphaData',alphaImg,'CDataMapping','scaled');
 %scale the images
 colormap(axList(3),gray);
 caxis(axList(3),[1 maxVal]);
-colormap(axList(4),flipud(ccvColor));
+colormap(axList(4),cmapFlip);
 caxis(axList(4),ccvRange);
 
 fImgOnly = getframe(f2);

@@ -6,7 +6,7 @@
 %borrows heavily from my previously developed batchTraceMembranes2 suite.
 
 %Sample function call:
-    %batchTraceFromStruct(myPxWiseFitData,'tau','conc_nM',["cellType";"incubationTime"],...
+    %batchTraceFromStruct(myPxWiseFitData,'tm','conc_nM',["cellType";"incubationTime"],...
     %  'myOutputFolderName','myOutputFileName');
 
 %Input parameter descriptions:
@@ -129,6 +129,7 @@ for i = 1:size(data,1)
     end
     for j=1:size(masks,3)
         writeTIFF(data(i,1).masks(:,:,j),'analysis',maskPath,strcat(oFName,num2str(j)));
+        
         image = immultiply(masks(:,:,j),signalImg);
         image(image == 0) = NaN;
         data(i,1).meanSignal(j,1) = nanmean(nanmean(image,1),2);

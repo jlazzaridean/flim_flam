@@ -67,7 +67,7 @@ function [dataToSave,md,config] = importData(importMode,oName)
 %write the paths to the directories where you most commonly would like to
 %start looking for files (configuration and data)
 configPath = pwd;
-dataPath = 'C:\Users\JLD\PhD\ImagingData\Chang880Data\';
+dataPath = 'C:\Users\JLD\PhD\Box Sync\2020 2P FLIM - Bioelectricity\03 Characterization';
 
 %%%%%%%%%%%%%%%%%%Nothing below here needs to change%%%%%%%%%%%%%%%%%%%%%%%%
 

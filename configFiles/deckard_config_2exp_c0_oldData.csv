@@ -1,2 +1,0 @@
-period_ns,irf_start,irf_end,fit_start,fit_end,threshold,startParam_1,startParam_2,startParam_3,startParam_4,cShift,shiftFixed,model,fixedParam_1,fixedParam_2,fixedParam_3,fixedParam_4,IRFmode,offFixed,ADCres,viewDecay
-12.5,26,36,20,240,5000,1,1,0.5,2,0,1,2exp,0,0,0,0,paired,1,256,0

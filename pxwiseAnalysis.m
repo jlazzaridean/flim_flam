@@ -95,17 +95,14 @@ fsep = filesep;
 %create the directory oFolder in the path mentioned by the data
 folderInfo = dir(data(1,1).pName);
 if(folderInfo(1,1).isdir)
-    outPath = data(1,1).pName;
-    if(outPath(end) ~= fsep)
-        outPath(end+1) = fsep;
-    end
+    outPath = fullfile(data(1,1).pName,oFolder);
+    outPath(end+1) = fsep;
 else
     disp('Invalid directory. Saving to current matlab path.')
     outPath = oFolder;
 end
 mkdir(outPath);
 
-tic
 %iterate over the number of images to fit
 for i=1:size(data,1)
     data(i,1).model = model; %save the model for the record
@@ -126,7 +123,6 @@ for i=1:size(data,1)
     data(i,1).photons = sum(data(i,1).tcspc,3);    
     imgP = permute(binnedImg,[3 1 2]); %permute the binnedImg to make slicing faster
     
-    toc
     %go across the image and fit all pixels that are above threshold
     for j=1:size(imgP,2)
         for k=1:size(imgP,3)
@@ -182,7 +178,6 @@ for i=1:size(data,1)
             end
         end
     end
-    toc
     %render the images - one at a time in this case so that the user can
     %see as things unfold
     if nOverlays > 0
@@ -190,7 +185,6 @@ for i=1:size(data,1)
     else
         renderImages(data(i,1),render,outPath,-1,configS);
     end
-    toc
     close all
 end
 
