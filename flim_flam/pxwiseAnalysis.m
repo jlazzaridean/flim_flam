@@ -8,9 +8,6 @@
 %time. The function returns a structure with the fit results at each pixel
 %and also saves this structure to a .mat file. 
 
-%Note that the output TIFFs will be upsampled to a resolution of 500 x 500
-%px by default. You can change this on line 71 of renderOverlay.m
-
 %Assessing fit quality: Two measures of fit quality
 %are generated graphically - [1] histograms of the reduced chi squared at each
 %pixel for the first image from each cID and [2] a plot of the weighted
@@ -22,10 +19,10 @@
 
 %sample function calls:
     %myPxFits = pxwiseAnalysis(myImportedData,["tau";"chiSq";"overlay_tau"],...
-    %  'imageSaveFolderName',chang1expc0,[2.5 3.0]);
+    %  'imageSaveFolderName',2,'std',1,chang1expc0,[2.5 3.0]);
     
     %myPxFits = pxwiseAnalysis(myImportedData,["tau";"photons_raw";"photons"],...
-    %   'imageSaveFolderName2',chang1expc0);
+    %   'imageSaveFolderName2',1,'bh',2,chang1expc0);
     
 %Descripton of input parameters:
     %data - the output of 'pxwise' mode run inputData
@@ -43,7 +40,18 @@
         %"chiSq."
     %oFolder - the directory created within the path name in the data
     %structure where images will be saved
-    %configS - an imported structure for a config file. This can either be
+    %spatialBin - the extent of binning. The meaning of this depends on the
+    %binType (following parameter)
+    %binType - either 'bh' or 'std', specifies how the binning is completed
+        %'bh' - binning similar to that in SPCImage. bin 1 = data from all
+        %pixels one away are added to a given pixel (photon upsampling;
+        %lifetime is effectively a moving average)
+        %'std' - a more conventional binning scheme. bin 2 would indicate
+        %that a 2x2 chunk of pixels is added together to make 1 binned
+        %pixel
+    %adcBin - the binning in the ADC dimension of the data. The binning
+    %format on this is always 'std'
+    %config - an imported structure for a config file. This can either be
     %generated directly by the helper function readConfig() or used from
     %the output of the importData function.
     %varargin - additional parameters are required whenever an overlay is
@@ -59,14 +67,14 @@
 %count range, call the helper function renderImage directly and specify the
 %parameter photonMax. For 'std,' the lifetime is overlaid on the binned
 %photon image. In 'bh' binning, the upsampled lifetime map is overlaid on
-%the unbinned photon image (as in SPCImage). (Specified in config file)
+%the unbinned photon image (as in SPCImage).
 
 %Dependencies (all *.m): writeTIFF, renderImages, renderOverlay,
 %binRawTCSPC, convol, assignParams_2exp, assignParams_3exp,
 %assignParams_4exp, floptimize3_1exp, floptimize3_2exp, floptimze3_3exp,
 %floptimize4_3exp, sortATs
 
-function [data] = pxwiseAnalysis(data,render,oFolder,configS,varargin)
+function [data] = pxwiseAnalysis(data,render,oFolder,spatialBin,binType,adcBin,config,varargin)
 
 %add subfolders to the path
 addpath('parsingTracing');
@@ -77,17 +85,21 @@ addpath('fittingVariousModels');
 if(~isempty(render))
     nOverlays = nnz(contains(render,'overlay'));
     if(nOverlays ~= size(varargin,2))
-        error('Please enter exactly one range as [low high] for each overlay requested in varargin');
+        error('Please enter a range as [low high] for each overlay requested in varargin');
     end
 end
 
 %parse the data in the config file to get the necessary parameters
-binType = configS(1,1).binType;
-spatialBin = configS(1,1).spatialBin;
-adcBin = configS(1,1).adcBin;
-model = configS(1,1).model;
-thresh = configS(1,1).threshold;
-adcRes = configS(1,1).adcRes/adcBin;
+model = config(1,1).model;
+period_ns = config(1,1).period_ns;
+cShift = config(1,1).cShift;
+shiftFixed = config(1,1).shiftFixed;
+startParam = config(1,1).startParam;
+fixedParam = config(1,1).fixedParam;
+thresh = config(1,1).threshold;
+stFi = config(1,1).stFi./adcBin;
+offFixed = config(1,1).offFixed;
+ADCres = config(1,1).ADCres/adcBin;
 
 %identify the number of exponential components to use in generating a
 %structure of the correct size
@@ -98,8 +110,7 @@ fsep = filesep;
 %create the directory oFolder in the path mentioned by the data
 folderInfo = dir(data(1,1).pName);
 if(folderInfo(1,1).isdir)
-    outPath = fullfile(data(1,1).pName,oFolder);
-    outPath(end+1) = fsep;
+    outPath = strcat(data(1,1).pName,fsep,oFolder);
 else
     disp('Invalid directory. Saving to current matlab path.')
     outPath = oFolder;
@@ -136,16 +147,20 @@ for i=1:size(data,1)
                 switch model
                     case '1exp'
                         [tF, cF, offset, chiSq, residTrace, SSE, ...
-                            exitFlag] = floptimize3_1exp(fitMe,fitIRF,configS);
+                            exitFlag] = floptimize3_1exp(fitMe,fitIRF,...
+                            cShift,shiftFixed,offFixed,startParam,stFi,period_ns);
                     case '2exp'
                         [tm, aFs, tFs, cF, offset, chiSq, residTrace, SSE, ...
-                            exitFlag] = floptimize3_2exp(fitMe,fitIRF,configS);
+                            exitFlag] = floptimize3_2exp(fitMe,fitIRF,...
+                            cShift,shiftFixed,offFixed,startParam,fixedParam,stFi,period_ns);
                     case '3exp'
                         [tm, aFs, tFs, cF, offset, chiSq, residTrace, SSE, ...
-                            exitFlag] = floptimize3_3exp(fitMe,fitIRF,configS);
+                            exitFlag] = floptimize3_3exp(fitMe,fitIRF,...
+                            cShift,shiftFixed,offFixed,startParam,fixedParam,stFi,period_ns);
                     case '4exp'
                         [tm, aFs, tFs, cF, offset, chiSq, residTrace, SSE, ...
-                            exitFlag] = floptimize3_4exp(fitMe,fitIRF,configS);
+                            exitFlag] = floptimize3_4exp(fitMe,fitIRF,...
+                            cShift,shiftFixed,offFixed,startParam,fixedParam,stFi,period_ns);
                     otherwise
                         error('Unrecognized model string.');
                 end
@@ -177,26 +192,19 @@ for i=1:size(data,1)
                 data(i,1).chiSq(j,k) = NaN;
                 data(i,1).cShift(j,k) = NaN;
                 data(i,1).offset(j,k) = NaN;
-                data(i,1).resid(j,k,1:adcRes) = NaN;
+                data(i,1).resid(j,k,1:ADCres) = NaN;
             end
         end
     end
+    
     %render the images - one at a time in this case so that the user can
     %see as things unfold
-    if nOverlays > 0
-        renderImages(data(i,1),render,outPath,-1,configS,varargin{1,:});
-    else
-        renderImages(data(i,1),render,outPath,-1,configS);
-    end
-    close all
+    renderImages(data(i,1),render,outPath,-1,varargin{1,:});
 end
 
 %save the result as a .mat file
-oName = strcat(outPath,data(1,1).date,'_analyzedData');
-save(oName,'data','configS','-v7.3');
-%save the config file to csv
-oName_2 = strcat(oName,'_config.csv');
-writetable(struct2table(configS),oName_2);
+oName = strcat(outPath,fsep,data(1,1).date,'_analyzedData');
+save(oName,'data','-v7.3');
 
 %close all open figures
 close all
@@ -238,8 +246,8 @@ end
 %first image of each coverslip
 plotCount = 1;
 %calculate the time resolution
-nsPeriod = configS(1,1).nsPeriod;
-time = 0:nsPeriod/adcRes:(nsPeriod - nsPeriod/adcRes);
+period_ns = config(1,1).period_ns;
+time = 0:period_ns/ADCres:(period_ns - period_ns/ADCres);
 time = time';
 %iterate through the required number of figures and do the plotting
 for i=1:nFigs
@@ -278,7 +286,8 @@ for i=1:size(axList,1)
 end
 
 names = ["_chiSqHist";"_avgResid"];
-fullOName = strcat(outPath,data(1,1).date,'_pxWise');
+fs = filesep;
+fullOName = strcat(outPath,fs,data(i,1).date,'_pxWise');
 for i=1:size(figList,1)
     set(figList(i,1),'color','w');
     if (i <= size(figList,1)/2)

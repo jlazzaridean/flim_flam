@@ -1,0 +1,6 @@
+cellType,smallestObject,cID,imageID,frameID,voltage,irf_index,dye,conc_nM
+HEK293T,70,1,3,1,0,1,VF21Cl,100
+HEK293T,70,1,3,2,-80,1,VF21Cl,100
+HEK293T,70,1,3,3,40,1,VF21Cl,100
+HEK293T,70,1,3,4,-40,1,VF21Cl,100
+HEK293T,70,1,3,5,80,1,VF21Cl,100

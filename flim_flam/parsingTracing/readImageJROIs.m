@@ -61,7 +61,7 @@ if strcmp(mode,'csv')
         %if replicate ID is not provided, fill with 1 later on
         defaultRepID = 1;
     end
-    if ~any(contains(mdFields,'frameID'))
+    if ~any(contains(mdFields,'repID'))
         %if frame ID is not provided, fill with 1 later on
         defaultFrameID = 1;
     end
@@ -89,8 +89,7 @@ if strcmp(mode,'csv')
     %supposed to be applied to various images.    
     for i=1:nROIs
         rois(i,1).roiPath = pName;
-        rois(i,1).roiMDName = roiMDName;
-        rois(i,1).roiID = i;
+        rois(i,1).roiMDName = roiMDName;        
         
         %add a file extension and look for matches
         testName = strcat(rois(i,1).roiName,fileExt);
@@ -123,7 +122,6 @@ elseif strcmp(mode,'parse')
     for i=1:nROIs
         %save the file name and path name of the ROIs
         rois(i,1).roiPath = pName;
-        rois(i,1).roiID = i;
         if nROIs == 1
             rois(1,1).roiName = fNames;
         else

@@ -44,7 +44,7 @@ end
 [cID,imageID,repID] = parseIDString(string1);
 
 %if this image is part of a series, find a frame ID
-if(strcmp(mode,'series') && ~isnan(str2double(string1(end))))
+if(strcmp(mode,'series'))
     test = 1;
     readCount = 0;
     nEntries = size(string1,2);
@@ -57,8 +57,6 @@ if(strcmp(mode,'series') && ~isnan(str2double(string1(end))))
         readCount = readCount + 1;
     end
     frameID = str2double(string1((end+2-readCount):end));
-else
-    frameID = -1;
 end
 
 end

@@ -1,0 +1,2 @@
+nsPeriod,irfStart,irfEnd,fitStart,fitEnd,threshold,startParam_1,startParam_2,startParam_3,startParam_4,cShift,shiftFixed,model,fixedParam_1,fixedParam_2,fixedParam_3,fixedParam_4,irfMode,offsetMode,adcRes,adcBin,spatialBin,binType,viewDecay,maxFunEval,stepTol,optimTol,constraintTol,ccvColor
+12.5,26,36,20,240,5000,1,1,0.5,2,0,1,2exp,0,0,0,0,paired,1,256,1,2,std,0,1.00E+05,1.00E-04,1.00E-04,1.00E-06,jet
